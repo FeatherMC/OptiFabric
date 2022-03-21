@@ -30,7 +30,7 @@ public class OptifineVersion {
 
 	public static File findOptifineJar() throws IOException {
 		@SuppressWarnings("deprecation")
-		File modsDir = new File(FabricLoader.getInstance().getGameDirectory(), "mods");
+		File modsDir = new File(FabricLoader.getInstance().getGameDirectory(), "feather-mods");
 		File[] mods = modsDir.listFiles();
 
 		if (mods != null) {
