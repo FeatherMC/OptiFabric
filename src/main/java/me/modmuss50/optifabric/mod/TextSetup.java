@@ -8,7 +8,7 @@ import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.VarInsnNode;
 
-import net.fabricmc.tinyremapper.IMappingProvider.Member;
+import net.fabricmc.loader.impl.lib.tinyremapper.IMappingProvider.Member;
 
 import me.modmuss50.optifabric.util.RemappingUtils;
 

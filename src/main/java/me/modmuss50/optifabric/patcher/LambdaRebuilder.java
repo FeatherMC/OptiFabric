@@ -32,6 +32,7 @@ import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.Runnables;
 
 import me.modmuss50.optifabric.mod.OptifabricSetup;
+import net.fabricmc.loader.impl.lib.tinyremapper.IMappingProvider;
 import org.apache.commons.lang3.tuple.Pair;
 
 import it.unimi.dsi.fastutil.objects.Object2IntMap;
@@ -47,7 +48,6 @@ import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.MethodNode;
 
 import net.fabricmc.loader.api.FabricLoader;
-import net.fabricmc.tinyremapper.IMappingProvider;
 
 import me.modmuss50.optifabric.util.ASMUtils;
 

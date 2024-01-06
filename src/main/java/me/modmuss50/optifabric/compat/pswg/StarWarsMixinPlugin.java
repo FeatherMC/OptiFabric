@@ -14,7 +14,7 @@ import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
 import me.modmuss50.optifabric.compat.EmptyMixinPlugin;
 import me.modmuss50.optifabric.util.RemappingUtils;
 
-import net.fabricmc.tinyremapper.IMappingProvider.Member;
+import net.fabricmc.loader.impl.lib.tinyremapper.IMappingProvider.Member;
 
 public class StarWarsMixinPlugin extends EmptyMixinPlugin {
 	@Override

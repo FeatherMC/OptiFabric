@@ -10,7 +10,7 @@ import org.objectweb.asm.tree.MethodNode;
 
 import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
 
-import net.fabricmc.tinyremapper.IMappingProvider.Member;
+import net.fabricmc.loader.impl.lib.tinyremapper.IMappingProvider.Member;
 
 import me.modmuss50.optifabric.compat.InterceptingMixinPlugin;
 import me.modmuss50.optifabric.util.RemappingUtils;

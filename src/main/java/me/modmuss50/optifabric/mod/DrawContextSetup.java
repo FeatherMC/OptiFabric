@@ -2,7 +2,7 @@ package me.modmuss50.optifabric.mod;
 
 import com.chocohead.mm.api.ClassTinkerers;
 import me.modmuss50.optifabric.util.RemappingUtils;
-import net.fabricmc.tinyremapper.IMappingProvider.Member;
+import net.fabricmc.loader.impl.lib.tinyremapper.IMappingProvider.Member;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.*;
 

@@ -28,6 +28,8 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipException;
 import java.util.zip.ZipFile;
 
+import net.fabricmc.loader.impl.lib.mappingio.tree.MappingTree;
+import net.fabricmc.loader.impl.lib.tinyremapper.NonClassCopyMode;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
@@ -42,17 +44,13 @@ import org.objectweb.asm.tree.RecordComponentNode;
 
 import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.loader.api.ModContainer;
-import net.fabricmc.loader.launch.common.FabricLauncherBase;
-import net.fabricmc.mapping.tree.ClassDef;
-import net.fabricmc.mapping.tree.FieldDef;
-import net.fabricmc.mapping.tree.MethodDef;
-import net.fabricmc.mapping.tree.TinyTree;
+import net.fabricmc.loader.impl.launch.FabricLauncherBase;
 
-import net.fabricmc.tinyremapper.IMappingProvider;
-import net.fabricmc.tinyremapper.OutputConsumerPath;
-import net.fabricmc.tinyremapper.TinyRemapper;
-import net.fabricmc.tinyremapper.IMappingProvider.Member;
-import net.fabricmc.tinyremapper.OutputConsumerPath.Builder;
+import net.fabricmc.loader.impl.lib.tinyremapper.IMappingProvider;
+import net.fabricmc.loader.impl.lib.tinyremapper.OutputConsumerPath;
+import net.fabricmc.loader.impl.lib.tinyremapper.TinyRemapper;
+import net.fabricmc.loader.impl.lib.tinyremapper.IMappingProvider.Member;
+import net.fabricmc.loader.impl.lib.tinyremapper.OutputConsumerPath.Builder;
 
 import me.modmuss50.optifabric.mod.OptifineVersion.JarType;
 import me.modmuss50.optifabric.patcher.ClassCache;
@@ -66,7 +64,7 @@ public class OptifineSetup {
 	@SuppressWarnings("unchecked")
 	public static Pair<File, ClassCache> getRuntime() throws IOException {
 		@SuppressWarnings("deprecation") //Keeping backward compatibility with older Loader versions
-		File workingDir = new File(FabricLoader.getInstance().getGameDirectory(), ".optifine");
+		File workingDir = new File(FabricLoader.getInstance().getGameDirectory(), ".optifine2");
 		if (!workingDir.exists()) {
 			FileUtils.forceMkdir(workingDir);
 		}
@@ -245,12 +243,13 @@ public class OptifineSetup {
 	private static void remapOptifine(Path input, Path[] libraries, Path output, IMappingProvider mappings) throws IOException {
 		Files.deleteIfExists(output);
 
-		TinyRemapper remapper = TinyRemapper.newRemapper().withMappings(mappings).skipLocalVariableMapping(true).renameInvalidLocals(FabricLoader.getInstance().isDevelopmentEnvironment()).rebuildSourceFilenames(true).build();
+		//TinyRemapper remapper = TinyRemapper.newRemapper().withMappings(mappings).skipLocalVariableMapping(true).renameInvalidLocals(FabricLoader.getInstance().isDevelopmentEnvironment()).rebuildSourceFilenames(true).build();
+		TinyRemapper remapper = TinyRemapper.newRemapper().withMappings(mappings).renameInvalidLocals(FabricLoader.getInstance().isDevelopmentEnvironment()).rebuildSourceFilenames(true).build();
 
 		try (OutputConsumerPath outputConsumer = new Builder(output).assumeArchive(true).build()) {
-			outputConsumer.addNonClassFiles(input);
-			remapper.readInputs(input);
-			remapper.readClassPath(libraries);
+			outputConsumer.addNonClassFiles(input, NonClassCopyMode.UNCHANGED, null);
+			remapper.readInputsAsync(null, input).join();
+			remapper.readClassPathAsync(libraries).join();
 
 			remapper.apply(outputConsumer);
 		} catch (Exception e) {
@@ -262,48 +261,48 @@ public class OptifineSetup {
 
 	//Optifine currently has two fields that match the same name as Yarn mappings, we'll rename Optifine's to something else
 	private static IMappingProvider createMappings(String from, String to, IMappingProvider extra) {
-		TinyTree normalMappings = FabricLauncherBase.getLauncher().getMappingConfiguration().getMappings();
+		MappingTree normalMappings = FabricLauncherBase.getLauncher().getMappingConfiguration().getMappings();
 
-		Map<String, ClassDef> nameToClass = normalMappings.getClasses().stream().collect(Collectors.toMap(clazz -> clazz.getName("intermediary"), Function.identity()));
+		Map<String, MappingTree.ClassMapping> nameToClass = normalMappings.getClasses().stream().collect(Collectors.toMap(clazz -> clazz.getName("intermediary"), Function.identity()));
 		Map<Member, String> extraMethods = new HashMap<>();
 		Map<Member, String> extraFields = new HashMap<>();
 
-		ClassDef rebuildTask = nameToClass.get("net/minecraft/class_846$class_851$class_4578");
-		ClassDef builtChunk = nameToClass.get("net/minecraft/class_846$class_851");
+		MappingTree.ClassMapping rebuildTask = nameToClass.get("net/minecraft/class_846$class_851$class_4578");
+		MappingTree.ClassMapping builtChunk = nameToClass.get("net/minecraft/class_846$class_851");
 		extraFields.put(new Member(rebuildTask.getName(from), "this$1", 'L' + builtChunk.getName(from) + ';'), "field_20839");
 
-		ClassDef bakerImpl = nameToClass.get("net/minecraft/class_1088$class_7778");
+		MappingTree.ClassMapping bakerImpl = nameToClass.get("net/minecraft/class_1088$class_7778");
 		if (bakerImpl != null) {//Only present in 1.19.3+
-			ClassDef modelLoader = nameToClass.get("net/minecraft/class_1088");
+			MappingTree.ClassMapping modelLoader = nameToClass.get("net/minecraft/class_1088");
 			extraFields.put(new Member(bakerImpl.getName(from), "this$0", 'L' + modelLoader.getName(from) + ';'), "field_40571");
 		}
 
-		ClassDef particleManager = nameToClass.get("net/minecraft/class_702");
+		MappingTree.ClassMapping particleManager = nameToClass.get("net/minecraft/class_702");
 		particleManager.getFields().stream().filter(field -> "field_3835".equals(field.getName("intermediary"))).forEach(field -> {
 			extraFields.put(new Member(particleManager.getName(from), field.getName(from), "Ljava/util/Map;"), field.getName(to));
 		});
 
-		ClassDef clientEntityHandler = nameToClass.get("net/minecraft/class_638$class_5612");
+		MappingTree.ClassMapping clientEntityHandler = nameToClass.get("net/minecraft/class_638$class_5612");
 		if (clientEntityHandler != null) {//Only present in 1.17.x (20w45a+)
-			ClassDef clientWorld = nameToClass.get("net/minecraft/class_638");
+			MappingTree.ClassMapping clientWorld = nameToClass.get("net/minecraft/class_638");
 			extraFields.put(new Member(clientEntityHandler.getName(from), "this$0", 'L' + clientWorld.getName(from) + ';'), "field_27735");
 		}
 
 		//In dev
 		if (FabricLoader.getInstance().isDevelopmentEnvironment()) {
-			ClassDef option = nameToClass.get("net/minecraft/class_316");
-			ClassDef cyclingOption = nameToClass.get("net/minecraft/class_4064");
+			MappingTree.ClassMapping option = nameToClass.get("net/minecraft/class_316");
+			MappingTree.ClassMapping cyclingOption = nameToClass.get("net/minecraft/class_4064");
 			if (option != null && cyclingOption != null) {//Removed in 1.19
 				extraFields.put(new Member(option.getName(from), "CLOUDS", 'L' + cyclingOption.getName(from) + ';'), "CLOUDS_OF");
 			}
 
-			ClassDef worldRenderer = nameToClass.get("net/minecraft/class_761");
+			MappingTree.ClassMapping worldRenderer = nameToClass.get("net/minecraft/class_761");
 			extraFields.put(new Member(worldRenderer.getName(from), "renderDistance", "I"), "renderDistance_OF");
 
-			ClassDef threadExecutor = nameToClass.get("net/minecraft/class_1255");
+			MappingTree.ClassMapping threadExecutor = nameToClass.get("net/minecraft/class_1255");
 			extraMethods.put(new Member(threadExecutor.getName(from), "getTaskCount", "()I"), "getTaskCount_OF");
 
-			ClassDef vertexBuffer = nameToClass.get("net/minecraft/class_291");
+			MappingTree.ClassMapping vertexBuffer = nameToClass.get("net/minecraft/class_291");
 			extraFields.put(new Member(vertexBuffer.getName(from), "vertexCount", "I"), "vertexCount_OF");
 
 			String modelPart = nameToClass.get("net/minecraft/class_630").getName(from);
@@ -312,16 +311,18 @@ public class OptifineSetup {
 
 		//In prod
 		return (out) -> {
-			for (ClassDef classDef : normalMappings.getClasses()) {
+			for (MappingTree.ClassMapping classDef : normalMappings.getClasses()) {
 				String className = classDef.getName(from);
 				out.acceptClass(className, classDef.getName(to));
 
-				for (FieldDef field : classDef.getFields()) {
-					out.acceptField(new Member(className, field.getName(from), field.getDescriptor(from)), field.getName(to));
+				for (MappingTree.FieldMapping field : classDef.getFields()) {
+					//out.acceptField(new Member(className, field.getName(from), field.getDescriptor(from)), field.getName(to));
+					out.acceptField(new Member(className, field.getName(from), field.getSrcDesc()), field.getName(to));
 				}
 
-				for (MethodDef method : classDef.getMethods()) {
-					out.acceptMethod(new Member(className, method.getName(from), method.getDescriptor(from)), method.getName(to));
+				for (MappingTree.MethodMapping method : classDef.getMethods()) {
+					// out.acceptMethod(new Member(className, method.getName(from), method.getDescriptor(from)), method.getName(to));
+					out.acceptMethod(new Member(className, method.getName(from), method.getSrcDesc()), method.getName(to));
 				}
 			}
 
@@ -334,7 +335,7 @@ public class OptifineSetup {
 
 	//Gets the minecraft librarys
 	private static Path[] getLibs(Path minecraftJar) {
-		Path[] libs = FabricLauncherBase.getLauncher().getLoadTimeDependencies().stream().map(url -> {
+		Path[] libs = net.fabricmc.loader.launch.common.FabricLauncherBase.getLauncher().getLoadTimeDependencies().stream().map(url -> {
 			try {
 				return Paths.get(url.toURI());
 			} catch (URISyntaxException e) {

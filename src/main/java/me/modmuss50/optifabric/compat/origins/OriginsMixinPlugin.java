@@ -4,7 +4,7 @@ import java.lang.reflect.Method;
 
 import me.modmuss50.optifabric.compat.InterceptingMixinPlugin;
 import me.modmuss50.optifabric.util.RemappingUtils;
-import net.fabricmc.tinyremapper.IMappingProvider.Member;
+import net.fabricmc.loader.impl.lib.tinyremapper.IMappingProvider.Member;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.tree.AbstractInsnNode;
 import org.objectweb.asm.tree.ClassNode;
