@@ -18,6 +18,7 @@ import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -29,6 +30,7 @@ import java.util.zip.ZipException;
 import java.util.zip.ZipFile;
 
 import net.fabricmc.loader.impl.lib.mappingio.tree.MappingTree;
+import net.fabricmc.loader.impl.lib.mappingio.tree.MappingTreeView;
 import net.fabricmc.loader.impl.lib.tinyremapper.NonClassCopyMode;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.io.FileUtils;
@@ -264,9 +266,10 @@ public class OptifineSetup {
 		MappingTree normalMappings = FabricLauncherBase.getLauncher().getMappingConfiguration().getMappings();
 
 		Map<String, MappingTree.ClassMapping> nameToClass = normalMappings.getClasses().stream()
-			.filter(clazz -> clazz.getName("intermediary") != null)
-			.collect(Collectors.toMap(
-				clazz -> clazz.getName("intermediary"),
+			.collect(Collectors.toMap(clazz -> {
+						String intermediaryName = clazz.getName("intermediary");
+						return intermediaryName != null ? intermediaryName : clazz.getSrcName();
+					},
 				Function.identity()
 			));
 
@@ -319,9 +322,11 @@ public class OptifineSetup {
 		return (out) -> {
 			for (MappingTree.ClassMapping classDef : normalMappings.getClasses()) {
 				String className = classDef.getName(from);
-				if (classDef.getName(to) == null) continue;
-
-				out.acceptClass(className, classDef.getName(to));
+				if (classDef.getName(to) != null) {
+					out.acceptClass(className, classDef.getName(to));
+				} else {
+					out.acceptClass(className, className);
+				}
 
 				for (MappingTree.FieldMapping field : classDef.getFields()) {
 					//out.acceptField(new Member(className, field.getName(from), field.getDescriptor(from)), field.getName(to));
