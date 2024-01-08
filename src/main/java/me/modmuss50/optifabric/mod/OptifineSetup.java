@@ -263,7 +263,13 @@ public class OptifineSetup {
 	private static IMappingProvider createMappings(String from, String to, IMappingProvider extra) {
 		MappingTree normalMappings = FabricLauncherBase.getLauncher().getMappingConfiguration().getMappings();
 
-		Map<String, MappingTree.ClassMapping> nameToClass = normalMappings.getClasses().stream().collect(Collectors.toMap(clazz -> clazz.getName("intermediary"), Function.identity()));
+		Map<String, MappingTree.ClassMapping> nameToClass = normalMappings.getClasses().stream()
+			.filter(clazz -> clazz.getName("intermediary") != null)
+			.collect(Collectors.toMap(
+				clazz -> clazz.getName("intermediary"),
+				Function.identity()
+			));
+
 		Map<Member, String> extraMethods = new HashMap<>();
 		Map<Member, String> extraFields = new HashMap<>();
 
@@ -313,6 +319,8 @@ public class OptifineSetup {
 		return (out) -> {
 			for (MappingTree.ClassMapping classDef : normalMappings.getClasses()) {
 				String className = classDef.getName(from);
+				if (classDef.getName(to) == null) continue;
+
 				out.acceptClass(className, classDef.getName(to));
 
 				for (MappingTree.FieldMapping field : classDef.getFields()) {
